@@ -3,8 +3,9 @@
 #include <math.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <string.h>
 
-int* remove_item(int** array, int size, int index_to_remove) {
+int** remove_item(int** array, int size, int index_to_remove) {
     if (index_to_remove < 0 || index_to_remove >= size) {
         return array; // Invalid index, return original
     }
@@ -30,7 +31,7 @@ int* remove_item(int** array, int size, int index_to_remove) {
     return new_array;
 }
 
-int** forward_snake(int** snake, int** &available_pos, int* next_pos){
+int** forward_snake(int** snake, int** available_pos, int* next_pos){
   int last_index = sizeof(snake)/pow(sizeof(int), 2)-1;
   for (int i = 0; i < last_index; i++){
     snake[i] = snake[i+1];
@@ -51,7 +52,7 @@ int** forward_snake(int** snake, int** &available_pos, int* next_pos){
   
 }
 
-int** grow_snake(int** snake, int** &available_pos, int* next_pos, int new_chosed){
+int** grow_snake(int** snake, int** available_pos, int* next_pos){
     int size = sizeof(snake)/pow(sizeof(int), 2);
     snake = realloc(snake, (size + 1) * pow(sizeof(int), 2));
     
@@ -61,7 +62,17 @@ int** grow_snake(int** snake, int** &available_pos, int* next_pos, int new_chose
     }
 
     for (int j = 0; j < size+1; j++){
-      available_pos[j];
+      for (int k = 0; k < sizeof(available_pos)/pow(sizeof(int), 2); k++){
+        int* available = available_pos[k];
+
+        if (snake[j][0] == available[0] && snake[j][1] == available[1]){
+          available_pos = remove_item(available_pos, sizeof(available_pos)/pow(sizeof(int), 2), k);
+          k++;
+
+        }
+
+      }
+
 
     }
     
@@ -96,8 +107,10 @@ char change_direction(char current_direction, int* current_pos, int* next, int* 
       if (current_direction == 'N' || current_direction == 'S'){
         if (current_pos[1] < fruit_pos[1]) {
             return 'E';
-        } else {
+        } else if (current_pos[1] > fruit_pos[1]){
             return 'W';
+        } else{
+          return current_direction;;
         }
       }
 
@@ -105,9 +118,11 @@ char change_direction(char current_direction, int* current_pos, int* next, int* 
         if (current_pos[0] < fruit_pos[0]){
           return 'N';
 
-        } else {
+        } else if(current_pos[0] > fruit_pos[0]){
           return 'S';
 
+        } else{
+          return current_direction;
         }
       }
     } else {
@@ -216,12 +231,6 @@ void board_print(int** snake, int* fruit, int board_width){
   }
   
 }
-
-void clearScreen(){
-  const char *CLEAR_SCREEN_ANSI = "\e[1;1H\e[2J";
-  write(STDOUT_FILENO, CLEAR_SCREEN_ANSI, 12);
-}
-
 int main()
 {
   
@@ -237,6 +246,7 @@ int main()
   int snake_size = 1;
 
   char current_direction = 'N';
+  int** available_pos = generate_available_positions(10);
   
   while (true) {
     printf("\r");
@@ -266,10 +276,15 @@ int main()
     
     current_direction = set_direction(current_direction, snake[0], fruit_pos, snake, "");
     printf("%c\n", current_direction);
-    snake = forward_snake(snake, next_pos);
-    board_print(snake, fruit_pos, 10);
-    
+    if (next_pos[0] == fruit_pos[0] && next_pos[1] == fruit_pos[1]){
+      snake = grow_snake(snake, available_pos, next_pos);
 
+    } else{
+      snake = forward_snake(snake, available_pos, next_pos);
+    
+    }  
+    
+    board_print(snake, fruit_pos, 10);
     sleep(1);  // Sleep 300ms so you can see the update
   }
   
