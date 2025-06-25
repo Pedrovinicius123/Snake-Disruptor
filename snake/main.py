@@ -9,7 +9,7 @@ WINDOW_HEIGHT = 400
 WINDOW_WIDTH = 400
 
 def load_main_script():
-    libc = CDLL('./main.dll')
+    libc = CDLL('./main.o')
     libc.change_direction.restype = c_char
     libc.change_direction.argtypes = [c_char, c_int, c_int, POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(POINTER(c_int)), c_char_p]
     
