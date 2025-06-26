@@ -9,9 +9,9 @@ WINDOW_HEIGHT = 400
 WINDOW_WIDTH = 400
 
 def load_main_script():
-    libc = CDLL('./main.o')
+    libc = CDLL('./main.dll')
     libc.change_direction.restype = c_char
-    libc.change_direction.argtypes = [c_char, c_int, c_int, POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(POINTER(c_int)), c_char_p]
+    libc.change_direction.argtypes = [c_char, c_char, c_int, c_int, POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(POINTER(c_int)), POINTER(POINTER(c_int)), c_char_p]
     
     return libc
 
@@ -50,8 +50,12 @@ def main():
     robot_snake = load_main_script()
     snake = Snake(random.choice(fruit_possib))
     direction = 'N'   
+    anterior_direction = 'S'
     last_position = None
     anterior_pos = [0, 0]
+    
+
+    next_snake = snake.return_instance()
 
     while True:
         array_of_rows = None
@@ -73,7 +77,13 @@ def main():
 
         rows = [(c_int * 2)(x, y) for (x, y) in snake.positions]
         array_of_rows = (POINTER(c_int) * len(rows))(*[cast(row, POINTER(c_int)) for row in rows])
-        direction = robot_snake.change_direction(c_char(direction.encode()), c_int(len(snake.positions)), c_int(block_size), current_pos, anterior_pos, fruit_pos, array_of_rows, choices.encode('utf-8')).decode()
+
+        rows_copy = [(c_int * 2)(x, y) for (x, y) in  next_snake.positions]
+        array_of_rows_copy = (POINTER(c_int) * len(rows))(*[cast(row, POINTER(c_int)) for row in rows_copy])
+
+        anterior_direction_pos = direction
+        direction = robot_snake.change_direction(c_char(direction.encode()), c_char(anterior_direction.encode()), c_int(len(snake.positions)), c_int(block_size), current_pos, anterior_pos, fruit_pos, array_of_rows, array_of_rows_copy, choices.encode('utf-8')).decode()
+        anterior_direction = anterior_direction_pos
 
         match (direction):
             case 'E':
@@ -95,6 +105,7 @@ def main():
         
         if next_position == fruit:
             last_position = snake.forward(next_position, grow=True)
+            next_snake = snake.return_instance()
 
             fruit_possib.append(last_position)
             fruit_possib.remove(next_position)
@@ -103,13 +114,12 @@ def main():
         
         else:
             last_position = snake.forward(next_position)
+            next_snake = snake.return_instance()
 
             fruit_possib.append(last_position)
             if next_position in fruit_possib:
                 fruit_possib.remove(next_position)
 
-
-        
         print('FRUIT', fruit, direction)        
         
         print(direction)
