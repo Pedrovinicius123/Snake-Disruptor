@@ -56,7 +56,7 @@ def main():
                 pygame.quit()
                 sys.exit()
 
-        chosed = ""
+        chosed = "NSEW"
         direction = change_direction(direction, len(snake.positions), block_size, snake.positions[-1], last_position, fruit, snake.positions, chosed)
         print(direction)
 
