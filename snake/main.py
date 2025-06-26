@@ -1,6 +1,6 @@
 import pygame, random, time, sys
+from ctypes import *
 from snake import Snake
-from robo import change_direction
 
 BLACK = (0, 0, 0)
 WHITE = (200, 200, 200)
@@ -8,6 +8,12 @@ GREEN = (0, 200, 50)
 WINDOW_HEIGHT = 400
 WINDOW_WIDTH = 400
 
+def load_main_script():
+    libc = CDLL('./main.o')
+    libc.change_direction.restype = c_char
+    libc.change_direction.argtypes = [c_char, c_char, c_int, c_int, POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(POINTER(c_int)), POINTER(POINTER(c_int)), c_char_p]
+    
+    return libc
 
 def generate_fruit_possibilities(board_width, grid_size):
     possibilities = []
@@ -41,9 +47,15 @@ def main():
     fruit = random.choice(fruit_possib)
     fruit_possib.remove(fruit)
 
+    robot_snake = load_main_script()
     snake = Snake(random.choice(fruit_possib))
     direction = 'N'   
-    last_position = [0, 0]
+    anterior_direction = 'S'
+    last_position = None
+    anterior_pos = [0, 0]
+    
+
+    next_snake = snake.return_instance()
 
     while True:
         array_of_rows = None
@@ -56,22 +68,51 @@ def main():
                 pygame.quit()
                 sys.exit()
 
-        chosed = "NSEW"
-        direction = change_direction(direction, len(snake.positions), block_size, snake.positions[-1], last_position, fruit, snake.positions, chosed)
-        print(direction)
+        current_pos = (c_int * 2)(*snake.positions[-1])
+        anterior_pos = (c_int * 2)(*anterior_pos)
+        fruit_pos = (c_int * 2)(*fruit)
 
-        match (direction):
-            case 'E':
-                next_position = [snake.positions[-1][0]+block_size, snake.positions[-1][1]]
+        choices = "NSEW"
+        print(type(choices.encode('utf-8')))
 
-            case 'W':
-                next_position = [snake.positions[-1][0]-block_size, snake.positions[-1][1]]
+        rows = [(c_int * 2)(x, y) for (x, y) in snake.positions]
+        array_of_rows = (POINTER(c_int) * len(rows))(*[cast(row, POINTER(c_int)) for row in rows])
 
-            case 'S':
-                next_position = [snake.positions[-1][0], snake.positions[-1][1] + block_size]
-                
-            case 'N':
-                next_position = [snake.positions[-1][0], snake.positions[-1][1] - block_size]
+        rows_copy = [(c_int * 2)(x, y) for (x, y) in  next_snake.positions]
+        array_of_rows_copy = (POINTER(c_int) * len(rows))(*[cast(row, POINTER(c_int)) for row in rows_copy])
+
+        anterior_direction_pos = direction
+        direction = robot_snake.change_direction(c_char(direction.encode()), c_char(anterior_direction.encode()), c_int(len(snake.positions)), c_int(block_size), current_pos, anterior_pos, fruit_pos, array_of_rows, array_of_rows_copy, choices.encode('utf-8')).decode()
+        anterior_direction = anterior_direction_pos
+
+        if direction == 'E':
+            next_position = [snake.positions[-1][0]+block_size, snake.positions[-1][1]]
+
+        elif direction == 'W':
+            next_position = [snake.positions[-1][0]-block_size, snake.positions[-1][1]]
+
+        elif direction == 'S':
+            next_position = [snake.positions[-1][0], snake.positions[-1][1] + block_size]
+            
+        elif direction == 'N':
+            next_position = [snake.positions[-1][0], snake.positions[-1][1] - block_size]
+
+        current_pos = (c_int * 2)(*snake.positions[-1])
+        next_pos = (c_int * 2)(*next_position)
+        fruit_pos = (c_int * 2)(*fruit)
+
+        choices = "NSEW"
+        print(type(choices.encode('utf-8')))
+
+        rows = [(c_int * 2)(x, y) for (x, y) in snake.positions]
+        array_of_rows = (POINTER(c_int) * len(rows))(*[cast(row, POINTER(c_int)) for row in rows])
+
+        rows_copy = [(c_int * 2)(x, y) for (x, y) in  next_snake.positions]
+        array_of_rows_copy = (POINTER(c_int) * len(rows))(*[cast(row, POINTER(c_int)) for row in rows_copy])
+
+        anterior_direction_pos = direction
+        direction = robot_snake.change_direction(c_char(direction.encode()), c_char(anterior_direction.encode()), c_int(len(snake.positions)), c_int(block_size), next_pos, current_pos, fruit_pos, array_of_rows, array_of_rows_copy, choices.encode('utf-8')).decode()
+        anterior_direction = anterior_direction_pos
                 
         if not (0 <= snake.positions[-1][0] <= WINDOW_WIDTH) or not (0 <= snake.positions[-1][1] <= WINDOW_HEIGHT) or check_collision(snake):
             break
@@ -80,6 +121,7 @@ def main():
         
         if next_position == fruit:
             last_position = snake.forward(next_position, grow=True)
+            next_snake = snake.return_instance()
 
             fruit_possib.append(last_position)
             fruit_possib.remove(next_position)
@@ -88,10 +130,13 @@ def main():
         
         else:
             last_position = snake.forward(next_position)
+            next_snake = snake.return_instance()
 
             fruit_possib.append(last_position)
             if next_position in fruit_possib:
-                fruit_possib.remove(next_position)      
+                fruit_possib.remove(next_position)
+
+        print('FRUIT', fruit, direction)        
         
         print(direction)
         drawSnake(snake, block_size)
