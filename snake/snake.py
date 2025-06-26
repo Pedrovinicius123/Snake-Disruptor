@@ -8,4 +8,7 @@ class Snake:
         if not grow:
             return self.positions.pop(0)
         return next_pos
+
+    def return_instance(self):
+        return self
         

@@ -1,6 +1,6 @@
 import pygame, random, time, sys
-from ctypes import *
 from snake import Snake
+from robo import change_direction
 
 BLACK = (0, 0, 0)
 WHITE = (200, 200, 200)
@@ -8,12 +8,6 @@ GREEN = (0, 200, 50)
 WINDOW_HEIGHT = 400
 WINDOW_WIDTH = 400
 
-def load_main_script():
-    libc = CDLL('./main.o')
-    libc.change_direction.restype = c_char
-    libc.change_direction.argtypes = [c_char, c_int, c_int, POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(POINTER(c_int)), c_char_p]
-    
-    return libc
 
 def generate_fruit_possibilities(board_width, grid_size):
     possibilities = []
@@ -47,11 +41,9 @@ def main():
     fruit = random.choice(fruit_possib)
     fruit_possib.remove(fruit)
 
-    robot_snake = load_main_script()
     snake = Snake(random.choice(fruit_possib))
     direction = 'N'   
-    last_position = None
-    anterior_pos = [0, 0]
+    last_position = [0, 0]
 
     while True:
         array_of_rows = None
@@ -64,16 +56,9 @@ def main():
                 pygame.quit()
                 sys.exit()
 
-        current_pos = (c_int * 2)(*snake.positions[-1])
-        anterior_pos = (c_int * 2)(*anterior_pos)
-        fruit_pos = (c_int * 2)(*fruit)
-
-        choices = "NSEW"
-        print(type(choices.encode('utf-8')))
-
-        rows = [(c_int * 2)(x, y) for (x, y) in snake.positions]
-        array_of_rows = (POINTER(c_int) * len(rows))(*[cast(row, POINTER(c_int)) for row in rows])
-        direction = robot_snake.change_direction(c_char(direction.encode()), c_int(len(snake.positions)), c_int(block_size), current_pos, anterior_pos, fruit_pos, array_of_rows, choices.encode('utf-8')).decode()
+        chosed = ""
+        direction = change_direction(direction, len(snake.positions), block_size, snake.positions[-1], last_position, fruit, snake.positions, chosed)
+        print(direction)
 
         match (direction):
             case 'E':
@@ -106,11 +91,7 @@ def main():
 
             fruit_possib.append(last_position)
             if next_position in fruit_possib:
-                fruit_possib.remove(next_position)
-
-
-        
-        print('FRUIT', fruit, direction)        
+                fruit_possib.remove(next_position)      
         
         print(direction)
         drawSnake(snake, block_size)
