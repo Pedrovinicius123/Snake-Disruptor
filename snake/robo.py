@@ -1,31 +1,11 @@
-import math
 from typing import List, Tuple, Optional, Set
+import math
 
-# Type aliases for better code documentation
+# Type aliases
 Position = Tuple[int, int]
 Direction = str
 Snake = List[Position]
 BoardSize = int
-
-def calculate_distance(pos1: Position, pos2: Position) -> float:
-    """Calculate Euclidean distance between two points."""
-    return math.hypot(pos1[0] - pos2[0], pos1[1] - pos2[1])
-
-def remove_char(s: str, index: int) -> str:
-    """Remove character at given index from string."""
-    if 0 <= index < len(s):
-        return s[:index] + s[index+1:]
-    return s
-
-def find_and_remove(s: str, item: str) -> str:
-    """Find and remove first occurrence of item in string."""
-    index = s.find(item)
-    return remove_char(s, index) if index != -1 else s
-
-def is_position_in_snake(head:Position, snake: Snake) -> bool:
-    """Check if position collides with any snake segment except head."""
-    return head in snake[:-1]
-
 
 def calculate_distance(pos1: Position, pos2: Position) -> float:
     """Calculate Manhattan distance (faster than Euclidean for grid-based movement)"""
@@ -39,6 +19,31 @@ def is_collision_with_wall(head: Position, board_size: BoardSize) -> bool:
     """Check if snake hits the wall"""
     x, y = head
     return x < 0 or x >= board_size or y < 0 or y >= board_size
+
+def get_potential_collisions(
+    current_pos: Position,
+    snake: Snake,
+    direction: Direction,
+    chunk: int
+) -> Set[Position]:
+    """Get set of positions that would cause collisions in the current path"""
+    next_pos = get_next_position(current_pos, direction, chunk)
+    path_positions = set()
+    
+    # Check straight path in current direction
+    x, y = current_pos
+    if direction in ('N', 'S'):
+        step = -chunk if direction == 'N' else chunk
+        for dy in range(y + step, next_pos[1] + step, step):
+            path_positions.add((x, dy))
+    else:  # 'E' or 'W'
+        step = chunk if direction == 'E' else -chunk
+        for dx in range(x + step, next_pos[0] + step, step):
+            path_positions.add((dx, y))
+    
+    # Return intersection with snake body
+    snake_tuple = list(map(tuple, snake))
+    return path_positions & set(snake_tuple[:-1])
 
 def get_safe_directions(
     current_pos: Position,
@@ -61,11 +66,6 @@ def get_safe_directions(
             safe_directions.append(direction)
     
     return safe_directions
-
-
-def is_position_out_of_bounds(current_pos: Position, board_size: BoardSize) -> bool:
-    """Check if position is outside game board boundaries."""
-    return not (0 <= current_pos[0] < board_size and 0 <= current_pos[1] < board_size)
 
 def find_best_avoidance_direction(
     current_pos: Position,
@@ -124,7 +124,7 @@ def enhanced_check_collision(
     
     return avoidance_dir if avoidance_dir is not None else current_direction
 
-
+# Helper functions (unchanged from original)
 def get_next_position(current_pos: Position, direction: Direction, chunk: int) -> Position:
     """Calculate next position based on current direction."""
     x, y = current_pos
@@ -148,67 +148,20 @@ def set_direction(
     allowed_directions: str
 ) -> Direction:
     """Determine the best direction to move while avoiding collisions."""
-    next_pos = get_next_position(current_pos, current_direction, chunk)
+    # Use enhanced collision detection
+    new_direction = enhanced_check_collision(
+        current_direction,
+        current_pos,
+        snake,
+        fruit_pos,
+        chunk,
+        400  # board_size
+    )
     
-    # Check if next position is valid
-    if (not is_position_in_snake(next_pos, snake) and 
-        not is_position_out_of_bounds(next_pos, 400)):
-        return current_direction
-    
-    # Remove current and opposite directions from allowed options
-    opposite_dir = get_opposite_direction(current_direction)
-    options = find_and_remove(allowed_directions, current_direction)
-    options = find_and_remove(options, opposite_dir)
-    
-    print(options)
-    if not options:
-        return current_direction
-    
-    elif options: 
-        print('TO PROVE')
-        return find_best_avoidance_direction(options[0], current_pos, snake, fruit_pos)
-
-    return check_collision(current_direction, current_pos, snake, fruit_pos)
-
-def change_direction(
-    current_direction: Direction,
-    snake: Snake,
-    chunk: int,
-    current_pos: Position,
-    previous_pos: Position,
-    fruit_pos: Position,
-    allowed_directions: str
-) -> Direction:
-    """Change direction based on fruit position and obstacles."""
-    current_dist = calculate_distance(current_pos, fruit_pos)
-    previous_dist = calculate_distance(previous_pos, fruit_pos)
-    
-    # If moving away from fruit, consider changing direction
-    if current_dist > previous_dist:
-        dx = fruit_pos[0] - current_pos[0]
-        dy = fruit_pos[1] - current_pos[1]
-
-        if dx < 0 and current_direction in ('N', 'S'):
-            return set_direction('W', snake, chunk, current_pos, fruit_pos, allowed_directions)
-        elif dx > 0 and current_direction in ('N', 'S'):
-            return set_direction('E', snake, chunk, current_pos, fruit_pos, allowed_directions)
-        elif dy > 0 and current_direction in ('E', 'W'):
-            return set_direction('S', snake, chunk, current_pos, fruit_pos, allowed_directions)
-        elif dy < 0 and current_direction in ('E', 'W'):
-            return set_direction('N', snake, chunk, current_pos, fruit_pos, allowed_directions)
-
-    # Special cases when aligned with fruit
-    if current_pos[0] == fruit_pos[0] and current_direction in ('E', 'W'):
+    # Additional logic if needed
+    if (current_pos[0] == fruit_pos[0] and current_direction in ('E', 'W')):
         if current_pos[1] > fruit_pos[1]:
-            return set_direction('N', snake, chunk, current_pos, fruit_pos, allowed_directions)
-        else:
-            return set_direction('S', snake, chunk, current_pos, fruit_pos, allowed_directions)
-    
-    if current_pos[1] == fruit_pos[1] and current_direction in ('N', 'S'):
-        if current_pos[0] > fruit_pos[0]:
-            return set_direction('W', snake, chunk, current_pos, fruit_pos, allowed_directions)
-        else:
-            return set_direction('E', snake, chunk, current_pos, fruit_pos, allowed_directions)
-    
-    # Default case
-    return set_direction(current_direction, snake, chunk, current_pos, fruit_pos, allowed_directions)
+            return enhanced_check_collision('N', current_pos, snake, fruit_pos)
+        elif current_pos[1] < fruit_pos[1]:
+            return enhanced_check_collision('S', current_pos, snake, fruit_pos)
+    return new_direction

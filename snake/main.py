@@ -4,7 +4,7 @@ import time
 import sys
 from typing import List, Tuple
 from snake import Snake
-from robo import change_direction, Direction
+from robo import set_direction, Direction
 
 # Constants
 BLACK = (0, 0, 0)
@@ -13,8 +13,8 @@ GREEN = (0, 200, 50)
 RED = (200, 0, 0)
 WINDOW_SIZE = 400
 BLOCK_SIZE = 20
-FPS = 10
-MOVE_DELAY = 0.1
+FPS = 100
+MOVE_DELAY = 0.0001
 
 class Game:
     def __init__(self):
@@ -117,23 +117,22 @@ class Game:
                         self.game_over = False
             
             if not self.game_over:
-                print(self.direction)
                 # Update game state
                 self.screen.fill(BLACK)
                 self.draw_grid()
                 self.draw_fruit()
                 
                 # AI direction decision
-                self.direction = change_direction(
+                self.direction = set_direction(
                     self.direction,
                     self.snake.positions,
                     self.block_size,
                     tuple(self.snake.positions[-1]),
-                    self.last_position,
                     tuple(self.fruit),
                     "NSEW"
                 )
                 
+                print(self.direction)
                 self.handle_movement()
                 
                 # Check game over conditions
